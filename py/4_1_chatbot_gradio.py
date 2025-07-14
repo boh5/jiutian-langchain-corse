@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, AIMessage
 
 load_dotenv()
 
@@ -16,12 +17,15 @@ model = init_chat_model(
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
-system_prompt = ChatPromptTemplate.from_messages([
-    ("system", "你叫小智，是一名乐于助人的助手。"),
-    ("human", "{input}"),
-])
+system_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", "你叫小智，是一名乐于助人的助手。"),
+        ("human", "{input}"),
+    ]
+)
 
 qa_chain = system_prompt | model | StrOutputParser()
+
 
 async def chat_response(message, history):
     partial_message = ""
@@ -29,6 +33,7 @@ async def chat_response(message, history):
     async for chunk in qa_chain.astream({"input": message}):
         partial_message += chunk
         yield partial_message
+
 
 # ──────────────────────────────────────────────
 # 2. Gradio 组件
@@ -38,11 +43,16 @@ CSS = """
 .header-text {text-align: center; margin-bottom: 20px;}
 """
 
+
 def create_chatbot() -> gr.Blocks:
     with gr.Blocks(title="DeepSeek Chat", css=CSS) as demo:
         with gr.Column(elem_classes=["main-container"]):
-            gr.Markdown("# 🤖 LangChain B站公开课 By九天Hector", elem_classes=["header-text"])
-            gr.Markdown("基于 LangChain LCEL 构建的流式对话机器人", elem_classes=["header-text"])
+            gr.Markdown(
+                "# 🤖 LangChain B站公开课 By九天Hector", elem_classes=["header-text"]
+            )
+            gr.Markdown(
+                "基于 LangChain LCEL 构建的流式对话机器人", elem_classes=["header-text"]
+            )
 
             chatbot = gr.Chatbot(
                 height=500,
@@ -57,7 +67,7 @@ def create_chatbot() -> gr.Blocks:
             clear = gr.Button("清空", scale=1)
 
         # ---------------  状态：保存 messages_list  ---------------
-        state = gr.State([])          # 这里存放真正的 Message 对象列表
+        state = gr.State([])  # 这里存放真正的 Message 对象列表
 
         # ---------------  主响应函数（流式） ----------------------
         async def respond(user_msg: str, chat_hist: list, messages_list: list):
@@ -69,7 +79,7 @@ def create_chatbot() -> gr.Blocks:
             # 2) 追加用户消息
             messages_list.append(HumanMessage(content=user_msg))
             chat_hist = chat_hist + [(user_msg, None)]
-            yield "", chat_hist, messages_list      # 先显示用户消息
+            yield "", chat_hist, messages_list  # 先显示用户消息
 
             # 3) 流式调用模型
             partial = ""
@@ -88,7 +98,7 @@ def create_chatbot() -> gr.Blocks:
 
         # ---------------  清空函数 -------------------------------
         def clear_history():
-            return [], "", []          # 清空 Chatbot、输入框、messages_list
+            return [], "", []  # 清空 Chatbot、输入框、messages_list
 
         # ---------------  事件绑定 ------------------------------
         msg.submit(respond, [msg, chatbot, state], [msg, chatbot, state])

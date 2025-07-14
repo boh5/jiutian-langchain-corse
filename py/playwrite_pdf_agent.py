@@ -9,7 +9,7 @@ from langchain_community.agent_toolkits import PlayWrightBrowserToolkit
 from langchain import hub
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain.tools import tool
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
@@ -21,12 +21,10 @@ load_dotenv(override=True)
 DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
 
 
-
 @tool
 def summarize_website(url: str) -> str:
     """访问指定网站并返回内容总结"""
     try:
-
         # 创建浏览器
         sync_browser = create_sync_playwright_browser()
         toolkit = PlayWrightBrowserToolkit.from_browser(sync_browser=sync_browser)
@@ -70,7 +68,7 @@ def generate_pdf(content: str) -> str:
             font_paths = [
                 "C:/Windows/Fonts/simhei.ttf",  # 黑体
                 "C:/Windows/Fonts/simsun.ttc",  # 宋体
-                "C:/Windows/Fonts/msyh.ttc",    # 微软雅黑
+                "C:/Windows/Fonts/msyh.ttc",  # 微软雅黑
             ]
 
             chinese_font_registered = False
@@ -81,7 +79,7 @@ def generate_pdf(content: str) -> str:
                         chinese_font_registered = True
                         print(f"✔成功注册中文字体：{font_path}")
                         break
-                    except:
+                    except:  # noqa E722
                         continue
 
             if not chinese_font_registered:
@@ -92,23 +90,27 @@ def generate_pdf(content: str) -> str:
 
         # 自定义样式 - 支持中文
         title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
+            "CustomTitle",
+            parent=styles["Heading1"],
             fontSize=18,
             alignment=TA_CENTER,
             spaceAfter=30,
-            fontName='ChineseFont' if 'chinese_font_registered' in locals() and chinese_font_registered else 'Helvetica-Bold'
+            fontName="ChineseFont"
+            if "chinese_font_registered" in locals() and chinese_font_registered
+            else "Helvetica-Bold",
         )
 
         content_style = ParagraphStyle(
-            'CustomContent',
-            parent=styles['Normal'],
+            "CustomContent",
+            parent=styles["Normal"],
             fontSize=11,
             alignment=TA_JUSTIFY,
             leftIndent=20,
             rightIndent=20,
             spaceAfter=12,
-            fontName='ChineseFont' if 'chinese_font_registered' in locals() and chinese_font_registered else 'Helvetica'
+            fontName="ChineseFont"
+            if "chinese_font_registered" in locals() and chinese_font_registered
+            else "Helvetica",
         )
 
         # 构建PDF内容
@@ -120,43 +122,47 @@ def generate_pdf(content: str) -> str:
 
         # 生成时间
         time_text = f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        story.append(Paragraph(time_text, styles['Normal']))
+        story.append(Paragraph(time_text, styles["Normal"]))
         story.append(Spacer(1, 20))
 
         # 分隔线
-        story.append(Paragraph("=" * 50, styles['Normal']))
+        story.append(Paragraph("=" * 50, styles["Normal"]))
         story.append(Spacer(1, 15))
 
         # 主要内容 - 改进中文处理
         if content:
             # 清理和处理内容
-            content = content.replace('\r\n', '\n').replace('\r', '\n')
-            paragraphs = content.split('\n')
+            content = content.replace("\r\n", "\n").replace("\r", "\n")
+            paragraphs = content.split("\n")
 
             for para in paragraphs:
                 if para.strip():
                     # 处理特殊字符，确保PDF可以正确显示
                     clean_para = para.strip()
                     # 转换HTML实体
-                    clean_para = clean_para.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+                    clean_para = (
+                        clean_para.replace("&lt;", "<")
+                        .replace("&gt;", ">")
+                        .replace("&amp;", "&")
+                    )
 
                     try:
                         story.append(Paragraph(clean_para, content_style))
                         story.append(Spacer(1, 8))
-                    except Exception as para_error:
+                    except Exception:
                         # 如果段落有问题，尝试用默认字体
                         try:
                             fallback_style = ParagraphStyle(
-                                'Fallback',
-                                parent=styles['Normal'],
+                                "Fallback",
+                                parent=styles["Normal"],
                                 fontSize=10,
                                 leftIndent=20,
                                 rightIndent=20,
-                                spaceAfter=10
+                                spaceAfter=10,
                             )
                             story.append(Paragraph(clean_para, fallback_style))
                             story.append(Spacer(1, 8))
-                        except:
+                        except:  # noqa E722
                             # 如果还是有问题，记录错误但继续
                             print(f"⚠️ 段落处理失败: {clean_para[:50]}...")
                             continue
@@ -165,8 +171,10 @@ def generate_pdf(content: str) -> str:
 
         # 页脚信息
         story.append(Spacer(1, 30))
-        story.append(Paragraph("=" * 50, styles['Normal']))
-        story.append(Paragraph("本报告由 Playwright PDF Agent 自动生成", styles['Italic']))
+        story.append(Paragraph("=" * 50, styles["Normal"]))
+        story.append(
+            Paragraph("本报告由 Playwright PDF Agent 自动生成", styles["Italic"])
+        )
 
         # 生成PDF
         doc.build(story)
@@ -180,6 +188,7 @@ def generate_pdf(content: str) -> str:
         error_msg = f"PDF生成失败: {str(e)}"
         print(error_msg)
         return error_msg
+
 
 # 3. 创建串行链
 print("=== 创建串行链：网站总结 → PDF生成 ===")
@@ -204,11 +213,11 @@ optimization_prompt = ChatPromptTemplate.from_template(
 )
 
 model = init_chat_model(
-            model="deepseek-v3",
-            model_provider="openai",
-            api_key=DASHSCOPE_API_KEY,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        )
+    model="deepseek-v3",
+    model_provider="openai",
+    api_key=DASHSCOPE_API_KEY,
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+)
 
 optimized_chain = (
     summarize_website
@@ -218,6 +227,7 @@ optimized_chain = (
     | StrOutputParser()
     | generate_pdf
 )
+
 
 # 4. 测试函数
 def test_simple_chain(url: str):
@@ -230,6 +240,7 @@ def test_simple_chain(url: str):
     print(f"✅ 完成: {result}")
     return result
 
+
 def test_optimized_chain(url: str):
     """测试优化串行链"""
     print(f"\n🔄 开始处理URL (优化版): {url}")
@@ -240,6 +251,7 @@ def test_optimized_chain(url: str):
     result = optimized_chain.invoke(url)
     print(f"✅ 完成: {result}")
     return result
+
 
 # 5. 创建交互式函数
 def create_website_pdf_report(url: str, use_optimization: bool = True):
@@ -264,6 +276,7 @@ def create_website_pdf_report(url: str, use_optimization: bool = True):
         print(error_msg)
         return error_msg
 
+
 # 6. 主程序入口
 if __name__ == "__main__":
     # 测试URL
@@ -281,4 +294,4 @@ if __name__ == "__main__":
         create_website_pdf_report(test_url, use_optimization=True)
     else:
         print("使用默认优化模式...")
-        create_website_pdf_report(test_url, use_optimization=True) 
+        create_website_pdf_report(test_url, use_optimization=True)
